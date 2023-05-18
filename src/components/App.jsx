@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Searchbar from './Searchbar/Searchbar';
 import ImageGallery from './ImageGallery/ImageGallery';
 import Button from './Button/Button';
@@ -9,46 +9,36 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import css from './App.module.css';
 
-class App extends Component {
-  state = {
-    searchValue: '',
-    page: 1,
-    images: [],
-    loading: false,
-    largeImage: {},
-    error: null,
-    showModal: false,
-    isActive: false,
-  };
+const App = () => {
+  const [searchValue, setSearchValue] = useState('');
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [largeImage, setLargeImage] = useState({});
+  const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [totalHits, setTotalHits] = useState(null);
 
-  async componentDidUpdate(_, prevState) {
-    if (
-      prevState.searchValue !== this.state.searchValue ||
-      prevState.page !== this.state.page
-    ) {
-      const { searchValue, page, images } = this.state;
-      this.setState({ loading: true });
+  useEffect(() => {
+    if (searchValue === '') return;
+    async function getImages() {
       try {
+        setLoading(true);
         await fetchImages(searchValue, page).then(data => {
           if (data.hits.length === 0) {
-            this.setState({ loading: false, isActive: false });
+            setLoading(false);
             return Promise.reject(
               new Error(`Nothing found for "${searchValue}"`)
             );
           }
-          if (images.length + 12 <= data.totalHits) {
-            this.setState({ isActive: true });
-          } else {
-            this.setState({ isActive: false });
-          }
-          const searchedImages = data.hits;
-          this.setState(prevState => ({
-            images: [...prevState.images, ...searchedImages],
-            loading: false,
-          }));
+          setImages(state => [...state, ...data.hits]);
+          setLoading(false);
+          setTotalHits(data.totalHits);
         });
       } catch (error) {
-        this.setState({ loading: false, error });
+        setLoading(false);
+        setError(error);
         toast.error(`${error.message}`, {
           position: 'top-center',
           autoClose: 2000,
@@ -61,47 +51,47 @@ class App extends Component {
         });
       }
     }
-  }
+    getImages();
+  }, [page, searchValue]);
 
-  handleFormSubmit = searchValue => {
-    this.setState({ searchValue, page: 1, images: [] });
+  useEffect(() => {
+    if (images.length !== 0) setIsActive(true)
+    if (images.length === totalHits) setIsActive(false);
+  }, [images.length, totalHits]);
+
+  const handleFormSubmit = value => {
+    setSearchValue(value);
+    setPage(1);
+    setImages([]);
   };
 
-  handleLoadMoreClick = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const handleLoadMoreClick = () => {
+    setPage(state => state + 1);
   };
 
-  handleOpenModal = image => {
+  const handleOpenModal = image => {
     const largeImage = { url: image.largeImageURL, alt: image.tags };
-    this.setState({ largeImage, showModal: true });
+    setLargeImage(largeImage);
+    setShowModal(true);
   };
 
-  handleCloseModal = () => {
-    this.setState({ showModal: false });
+  const handleCloseModal = () => {
+    setShowModal(false);
   };
-  render() {
-    const { images, loading, error, showModal, isActive } = this.state;
-    return (
-      <div className={css.container}>
-        <Searchbar onSubmit={this.handleFormSubmit} />
-        {error && <p className={css.error}>{error.message}</p>}
-        {images.length !== 0 && (
-          <ImageGallery images={images} onClick={this.handleOpenModal} />
-        )}
-        {loading && <Loader />}
-        {isActive && <Button onClick={this.handleLoadMoreClick} />}
-        {showModal && (
-          <Modal
-            image={this.state.largeImage}
-            onClose={this.handleCloseModal}
-          />
-        )}
-        <ToastContainer />
-      </div>
-    );
-  }
-}
+
+  return (
+    <div className={css.container}>
+      <Searchbar onSubmit={handleFormSubmit} />
+      {error && <p className={css.error}>{error.message}</p>}
+      {images.length !== 0 && (
+        <ImageGallery images={images} onClick={handleOpenModal} />
+      )}
+      {loading && <Loader />}
+      {isActive && <Button onClick={handleLoadMoreClick} />}
+      {showModal && <Modal image={largeImage} onClose={handleCloseModal} />}
+      <ToastContainer />
+    </div>
+  );
+};
 
 export default App;
