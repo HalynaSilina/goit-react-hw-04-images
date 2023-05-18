@@ -10,10 +10,10 @@ const ImageGalleryItem = ({ image, tags, onClick }) => {
   );
 };
 
-ImageGalleryItem.propTypes={
+ImageGalleryItem.propTypes = {
   image: PropTypes.string.isRequired,
   tags: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired,
-}
+};
 
 export default ImageGalleryItem;
